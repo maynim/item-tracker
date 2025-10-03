@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
+import ru.maynim.tasklist.gui.CreativeTrackerScreen;
 
 /**
  * Handles adding a button to the inventory screen
@@ -40,11 +41,11 @@ public class InventoryButtonHandler {
                         button -> {
                             MinecraftClient mc = MinecraftClient.getInstance();
                             if (mc != null) {
-                                mc.setScreen(new TrackerMainScreen(screen));
+                                mc.setScreen(new CreativeTrackerScreen(screen));
                             }
                         })
                 .dimensions(buttonX, buttonY, 20, 20)
-                .tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Управление списками целей")))
+                .tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Списки целей")))
                 .build();
 
         // Добавляем кнопку на экран
