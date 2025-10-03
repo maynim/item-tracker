@@ -22,13 +22,6 @@
 			"ru.maynim.tasklist.TaskListClient"
 		]
 	},
-	"mixins": [
-		"task-list.mixins.json",
-		{
-			"config": "task-list.client.mixins.json",
-			"environment": "client"
-		}
-	],
 	"depends": {
 		"fabricloader": ">=0.17.2",
 		"minecraft": "~1.21.8",
