@@ -22,8 +22,9 @@ import java.util.List;
  * Screen for selecting items (Creative-style search)
  */
 public class ItemSelectionScreen extends Screen {
-    private static final Identifier CREATIVE_INVENTORY_TEXTURE =
-            Identifier.ofVanilla("textures/gui/container/creative_inventory/tabs.png");
+    // Текстура креативного инвентаря с полем поиска
+    private static final Identifier TAB_ITEM_SEARCH_TEXTURE =
+            Identifier.ofVanilla("textures/gui/container/creative_inventory/tab_item_search.png");
 
     private static final int BACKGROUND_WIDTH = 195;
     private static final int BACKGROUND_HEIGHT = 136;
@@ -62,17 +63,18 @@ public class ItemSelectionScreen extends Screen {
         this.backgroundX = (this.width - BACKGROUND_WIDTH) / 2;
         this.backgroundY = (this.height - BACKGROUND_HEIGHT) / 2;
 
-        // Поле поиска
+        // Поле поиска (позиционируется в области поиска текстуры)
         this.searchField = new TextFieldWidget(
                 this.textRenderer,
-                this.backgroundX + 10,
+                this.backgroundX + 82,
                 this.backgroundY + 6,
-                175,
+                89,
                 12,
                 Text.literal("Поиск")
         );
         this.searchField.setMaxLength(50);
-        this.searchField.setPlaceholder(Text.literal("Поиск предметов..."));
+        this.searchField.setPlaceholder(Text.literal("Поиск..."));
+        this.searchField.setDrawsBackground(false);  // Фон уже в текстуре
         this.searchField.setChangedListener(this::onSearchChanged);
         this.addSelectableChild(this.searchField);
         this.setInitialFocus(this.searchField);
@@ -107,10 +109,10 @@ public class ItemSelectionScreen extends Screen {
         // Фон
         context.fillGradient(0, 0, this.width, this.height, 0xC0101010, 0xD0101010);
 
-        // Рисуем фон инвентаря
+        // Рисуем фон креативного инвентаря с полем поиска
         context.drawTexture(
                 RenderPipelines.GUI_TEXTURED,
-                CREATIVE_INVENTORY_TEXTURE,
+                TAB_ITEM_SEARCH_TEXTURE,
                 this.backgroundX,
                 this.backgroundY,
                 0, 0,
@@ -121,7 +123,7 @@ public class ItemSelectionScreen extends Screen {
         // Поле поиска
         this.searchField.render(context, mouseX, mouseY, delta);
 
-        // Рисуем сетку предметов
+        // Рисуем сетку предметов (как в креативном инвентаре)
         hoveredSlot = -1;
         for (int i = 0; i < ROWS * ITEMS_PER_ROW; i++) {
             int row = i / ITEMS_PER_ROW;
@@ -132,8 +134,7 @@ public class ItemSelectionScreen extends Screen {
 
             int itemIndex = i + (scrollOffset * ITEMS_PER_ROW);
 
-            // Рисуем слот
-            drawSlot(context, slotX, slotY);
+            // Слоты уже отрисованы в текстуре
 
             if (itemIndex < filteredItems.size()) {
                 Item item = filteredItems.get(itemIndex);
@@ -145,7 +146,8 @@ public class ItemSelectionScreen extends Screen {
                 if (mouseX >= slotX && mouseX < slotX + SLOT_SIZE &&
                         mouseY >= slotY && mouseY < slotY + SLOT_SIZE) {
                     hoveredSlot = itemIndex;
-                    context.fill(slotX, slotY, slotX + SLOT_SIZE, slotY + SLOT_SIZE, 0x80FFFFFF);
+                    // Подсветка слота
+                    context.fill(slotX + 1, slotY + 1, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, 0x80FFFFFF);
                 }
             }
         }
@@ -164,7 +166,7 @@ public class ItemSelectionScreen extends Screen {
             );
         }
 
-        // Инструкция
+        // Инструкция внизу
         String info = filteredItems.size() + " предметов";
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
@@ -176,8 +178,7 @@ public class ItemSelectionScreen extends Screen {
     }
 
     private void drawSlot(DrawContext context, int x, int y) {
-        context.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, 0xFF8B8B8B);
-        context.fill(x + 1, y + 1, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0xFF373737);
+        // Не нужно, слоты уже в текстуре
     }
 
     @Override
