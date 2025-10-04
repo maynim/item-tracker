@@ -15,21 +15,25 @@ import ru.maynim.tasklist.ItemGoal;
 import ru.maynim.tasklist.TrackerList;
 import ru.maynim.tasklist.TrackerListManager;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Creative-style GUI for managing tracker lists
  */
 public class CreativeTrackerScreen extends Screen {
-    // Текстуры креативного инвентаря
-    private static final Identifier TABS_TEXTURE =
-            Identifier.ofVanilla("textures/gui/container/creative_inventory/tabs.png");
-    private static final Identifier TAB_ITEMS_TEXTURE =
-            Identifier.ofVanilla("textures/gui/container/creative_inventory/tab_items.png");
+    // Текстуры окна достижений для списка предметов
+    private static final Identifier WINDOW_TEXTURE =
+            Identifier.ofVanilla("textures/gui/advancements/window.png");
+    private static final Identifier BACKGROUND_TEXTURE =
+            Identifier.ofVanilla("textures/gui/advancements/backgrounds/adventure.png");
 
-    // Размеры окна креативного инвентаря
-    private static final int BACKGROUND_WIDTH = 195;
-    private static final int BACKGROUND_HEIGHT = 136;
+    // Размеры окна списка
+    private static final int WINDOW_WIDTH = 252;
+    private static final int WINDOW_HEIGHT = 140;
+
+    // Размеры фоновой текстуры
+    private static final int BACKGROUND_TILE_SIZE = 16;
 
     // Размеры вкладки
     private static final int TAB_WIDTH = 28;
@@ -37,10 +41,9 @@ public class CreativeTrackerScreen extends Screen {
     private static final int TAB_SELECTED_HEIGHT = 32;
     private static final int TAB_UNSELECTED_HEIGHT = 28;
 
-    // Позиции элементов
-    private static final int ITEMS_PER_ROW = 9;
-    private static final int ROWS = 5;
-    private static final int SLOT_SIZE = 18;
+    // Размеры элемента списка
+    private static final int ITEM_ROW_HEIGHT = 22;
+    private static final int ITEMS_VISIBLE = 4;  // Количество видимых строк
 
     /**
      * Получает текстуру вкладки на основе позиции, состояния и индекса
@@ -63,7 +66,14 @@ public class CreativeTrackerScreen extends Screen {
     private int selectedTabIndex = 0;
     private int scrollOffset = 0;
 
+    // Состояния наведения
+    private int hoveredTab = -1;
+    private int hoveredItemIcon = -1;
+
+    // Виджеты для редактирования
     private TextFieldWidget listNameField;
+    private final List<TextFieldWidget> amountFields = new ArrayList<>();
+    private final List<ButtonWidget> deleteButtons = new ArrayList<>();
 
     public CreativeTrackerScreen(Screen parent) {
         super(Text.literal("Управление списками"));
@@ -91,8 +101,12 @@ public class CreativeTrackerScreen extends Screen {
         super.init();
 
         // Вычисляем позицию окна по центру
-        this.backgroundX = (this.width - BACKGROUND_WIDTH) / 2;
-        this.backgroundY = (this.height - BACKGROUND_HEIGHT) / 2;
+        this.backgroundX = (this.width - WINDOW_WIDTH) / 2;
+        this.backgroundY = (this.height - WINDOW_HEIGHT) / 2;
+
+        // Очищаем старые виджеты
+        amountFields.clear();
+        deleteButtons.clear();
 
         if (this.currentList != null) {
             // Поле для редактирования имени списка
@@ -115,6 +129,64 @@ public class CreativeTrackerScreen extends Screen {
             });
             this.addSelectableChild(this.listNameField);
 
+            // Создаем поля ввода и кнопки для каждого предмета
+            List<ItemGoal> goals = this.currentList.getGoals();
+            int visibleCount = Math.min(ITEMS_VISIBLE, goals.size() - scrollOffset);
+
+            for (int i = 0; i < visibleCount; i++) {
+                int goalIndex = i + scrollOffset;
+                if (goalIndex >= goals.size()) break;
+
+                ItemGoal goal = goals.get(goalIndex);
+                int rowY = this.backgroundY + 20 + (i * ITEM_ROW_HEIGHT);
+
+                // Поле количества
+                TextFieldWidget amountField = new TextFieldWidget(
+                        this.textRenderer,
+                        this.backgroundX + 175,
+                        rowY + 5,
+                        40,
+                        14,
+                        Text.literal("Количество")
+                );
+                amountField.setMaxLength(3);
+                amountField.setText(String.valueOf(goal.getTargetAmount()));
+
+                final int finalGoalIndex = goalIndex;
+                amountField.setChangedListener(text -> {
+                    try {
+                        int amount = Integer.parseInt(text);
+                        if (amount > 0 && amount <= 999) {
+                            // Обновляем количество в цели
+                            ItemGoal currentGoal = this.currentList.getGoals().get(finalGoalIndex);
+                            this.currentList.removeGoal(finalGoalIndex);
+                            this.currentList.getGoals().add(finalGoalIndex, new ItemGoal(
+                                    currentGoal.getItem().toString(),
+                                    amount,
+                                    null
+                            ));
+                            TrackerListManager.save();
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
+                });
+                this.addSelectableChild(amountField);
+                amountFields.add(amountField);
+
+                // Кнопка удаления
+                ButtonWidget deleteButton = ButtonWidget.builder(
+                                Text.literal("✕"),
+                                button -> {
+                                    this.currentList.removeGoal(finalGoalIndex);
+                                    TrackerListManager.save();
+                                    this.clearAndInit();
+                                })
+                        .dimensions(this.backgroundX + 220, rowY + 4, 16, 16)
+                        .build();
+                this.addDrawableChild(deleteButton);
+                deleteButtons.add(deleteButton);
+            }
+
             // Кнопка "Активировать список"
             this.addDrawableChild(ButtonWidget.builder(
                             Text.literal(this.currentList.isActive() ? "✓ Активен" : "Активировать"),
@@ -122,7 +194,7 @@ public class CreativeTrackerScreen extends Screen {
                                 TrackerListManager.setActiveList(this.currentList);
                                 this.clearAndInit();
                             })
-                    .dimensions(this.backgroundX + 10, this.backgroundY + 116, 80, 16)
+                    .dimensions(this.backgroundX + 10, this.backgroundY + WINDOW_HEIGHT - 24, 80, 16)
                     .build()
             );
 
@@ -140,7 +212,7 @@ public class CreativeTrackerScreen extends Screen {
                                 }
                                 this.clearAndInit();
                             })
-                    .dimensions(this.backgroundX + 95, this.backgroundY + 116, 45, 16)
+                    .dimensions(this.backgroundX + 95, this.backgroundY + WINDOW_HEIGHT - 24, 55, 16)
                     .build()
             );
         }
@@ -149,7 +221,7 @@ public class CreativeTrackerScreen extends Screen {
         this.addDrawableChild(ButtonWidget.builder(
                         Text.literal("+"),
                         button -> this.createNewList())
-                .dimensions(this.backgroundX + 145, this.backgroundY + 116, 20, 16)
+                .dimensions(this.backgroundX + 155, this.backgroundY + WINDOW_HEIGHT - 24, 20, 16)
                 .tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Создать новый список")))
                 .build()
         );
@@ -158,7 +230,7 @@ public class CreativeTrackerScreen extends Screen {
         this.addDrawableChild(ButtonWidget.builder(
                         ScreenTexts.DONE,
                         button -> this.close())
-                .dimensions(this.backgroundX + 170, this.backgroundY + 116, 20, 16)
+                .dimensions(this.backgroundX + WINDOW_WIDTH - 40, this.backgroundY + WINDOW_HEIGHT - 24, 35, 16)
                 .build()
         );
     }
@@ -186,32 +258,38 @@ public class CreativeTrackerScreen extends Screen {
         // Затемнённый фон
         context.fillGradient(0, 0, this.width, this.height, 0xC0101010, 0xD0101010);
 
-        // ВАЖНО: Сбрасываем состояния наведения перед каждым рендером
+        // Сбрасываем состояния наведения
         hoveredTab = -1;
-        hoveredSlot = -1;
+        hoveredItemIcon = -1;
 
         // 1. Сначала рисуем неактивные вкладки (задний план)
         drawInactiveTabs(context, mouseX, mouseY);
 
-        // 2. Затем рисуем основной фон (перекрывает неактивные вкладки)
+        // 2. Затем рисуем основное окно
         drawBackground(context);
 
-        // 3. Потом рисуем активную вкладку (передний план, перекрывает фон)
+        // 3. Потом рисуем активную вкладку (передний план)
         drawActiveTab(context, mouseX, mouseY);
 
         // 4. Рисуем содержимое
         if (this.currentList != null) {
-            drawListContent(context, mouseX, mouseY);
-
-            // Рисуем поле имени
+            // Поле имени
             if (this.listNameField != null) {
                 this.listNameField.render(context, mouseX, mouseY, delta);
+            }
+
+            // Список предметов
+            drawItemList(context, mouseX, mouseY);
+
+            // Рисуем все текстовые поля и кнопки
+            for (TextFieldWidget field : amountFields) {
+                field.render(context, mouseX, mouseY, delta);
             }
         } else {
             // Нет списков
             context.drawCenteredTextWithShadow(
                     this.textRenderer,
-                    "Нет списков",
+                    "Нет списков. Создайте новый!",
                     this.width / 2,
                     this.height / 2,
                     Colors.GRAY
@@ -225,14 +303,32 @@ public class CreativeTrackerScreen extends Screen {
     }
 
     private void drawBackground(DrawContext context) {
-        // Рисуем фон креативного инвентаря (вкладка с предметами)
+        // 1. Рисуем повторяющийся фон (текстура backgrounds/adventure.png)
+        int tilesX = (WINDOW_WIDTH / BACKGROUND_TILE_SIZE) + 1;
+        int tilesY = (WINDOW_HEIGHT / BACKGROUND_TILE_SIZE) + 1;
+
+        for (int x = 0; x < tilesX - 1; x++) {
+            for (int y = 0; y < tilesY - 1; y++) {
+                context.drawTexture(
+                        RenderPipelines.GUI_TEXTURED,
+                        BACKGROUND_TEXTURE,
+                        this.backgroundX + (x * BACKGROUND_TILE_SIZE) + 6,
+                        this.backgroundY + (y * BACKGROUND_TILE_SIZE) + 6,
+                        0, 0,
+                        BACKGROUND_TILE_SIZE, BACKGROUND_TILE_SIZE,
+                        BACKGROUND_TILE_SIZE, BACKGROUND_TILE_SIZE
+                );
+            }
+        }
+
+        // 2. Рисуем рамку окна (window.png) поверх фона
         context.drawTexture(
                 RenderPipelines.GUI_TEXTURED,
-                TAB_ITEMS_TEXTURE,
+                WINDOW_TEXTURE,
                 this.backgroundX,
                 this.backgroundY,
                 0, 0,
-                BACKGROUND_WIDTH, BACKGROUND_HEIGHT,
+                WINDOW_WIDTH, WINDOW_HEIGHT,
                 256, 256
         );
     }
@@ -302,7 +398,7 @@ public class CreativeTrackerScreen extends Screen {
             tabY = this.backgroundY - tabHeight + 4;
         } else {
             tabHeight = selected ? TAB_SELECTED_HEIGHT : TAB_UNSELECTED_HEIGHT;
-            tabY = this.backgroundY + BACKGROUND_HEIGHT - 4;
+            tabY = this.backgroundY + WINDOW_HEIGHT - 4;
         }
 
         // Номер вкладки для текстуры (1-5)
@@ -339,81 +435,95 @@ public class CreativeTrackerScreen extends Screen {
         }
     }
 
-    private int hoveredTab = -1;
-    private int hoveredSlot = -1;
-
-    private void drawListContent(DrawContext context, int mouseX, int mouseY) {
+    /**
+     * Рисует список предметов в стиле HUD
+     */
+    private void drawItemList(DrawContext context, int mouseX, int mouseY) {
         if (this.currentList == null) return;
 
         List<ItemGoal> goals = this.currentList.getGoals();
-        hoveredSlot = -1;
 
-        // Рисуем сетку предметов (5 рядов по 9 слотов, как в креативном инвентаре)
-        for (int i = 0; i < ROWS * ITEMS_PER_ROW; i++) {
-            int row = i / ITEMS_PER_ROW;
-            int col = i % ITEMS_PER_ROW;
+        // Рисуем видимые строки
+        int visibleCount = Math.min(ITEMS_VISIBLE, goals.size() - scrollOffset);
 
-            int slotX = this.backgroundX + 8 + (col * SLOT_SIZE);
-            int slotY = this.backgroundY + 17 + (row * SLOT_SIZE);
+        for (int i = 0; i < visibleCount; i++) {
+            int goalIndex = i + scrollOffset;
+            if (goalIndex >= goals.size()) break;
 
-            int goalIndex = i + (scrollOffset * ITEMS_PER_ROW);
+            ItemGoal goal = goals.get(goalIndex);
+            int rowY = this.backgroundY + 20 + (i * ITEM_ROW_HEIGHT);
 
-            // Слоты уже отрисованы в текстуре креативного инвентаря
-
-            if (goalIndex < goals.size()) {
-                // Рисуем существующий предмет
-                ItemGoal goal = goals.get(goalIndex);
-                ItemStack stack = new ItemStack(goal.getItem());
-
-                context.drawItem(stack, slotX + 1, slotY + 1);
-
-                // Количество
-                String amountText = String.valueOf(goal.getTargetAmount());
-                context.drawText(
-                        this.textRenderer,
-                        amountText,
-                        slotX + 19 - this.textRenderer.getWidth(amountText),
-                        slotY + 10,
-                        Colors.WHITE,
-                        true
+            // Фон строки (полупрозрачный при наведении)
+            if (isMouseOverRow(mouseX, mouseY, rowY)) {
+                context.fill(
+                        this.backgroundX + 10,
+                        rowY,
+                        this.backgroundX + WINDOW_WIDTH - 10,
+                        rowY + ITEM_ROW_HEIGHT,
+                        0x40FFFFFF
                 );
-
-                // Проверка наведения
-                if (mouseX >= slotX && mouseX < slotX + SLOT_SIZE &&
-                        mouseY >= slotY && mouseY < slotY + SLOT_SIZE) {
-                    hoveredSlot = goalIndex;
-                    // Подсветка слота (стандартная как в Minecraft)
-                    context.fill(slotX + 1, slotY + 1, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, 0x80FFFFFF);
-                }
-            } else if (goalIndex == goals.size()) {
-                // Кнопка добавления нового предмета
-                drawAddButton(context, slotX, slotY);
-
-                if (mouseX >= slotX && mouseX < slotX + SLOT_SIZE &&
-                        mouseY >= slotY && mouseY < slotY + SLOT_SIZE) {
-                    hoveredSlot = -2;
-                    context.fill(slotX + 1, slotY + 1, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, 0x80FFFFFF);
-                }
             }
+
+            // Иконка предмета (кликабельная)
+            ItemStack stack = new ItemStack(goal.getItem());
+            int iconX = this.backgroundX + 15;
+            int iconY = rowY + 4;
+
+            context.drawItem(stack, iconX, iconY);
+
+            // Проверка наведения на иконку
+            if (mouseX >= iconX && mouseX < iconX + 16 &&
+                    mouseY >= iconY && mouseY < iconY + 16) {
+                hoveredItemIcon = goalIndex;
+                // Подсветка иконки
+                context.fill(iconX, iconY, iconX + 16, iconY + 16, 0x80FFFFFF);
+            }
+
+            // Название предмета (не редактируемое)
+            String itemName = stack.getName().getString();
+            context.drawTextWithShadow(
+                    this.textRenderer,
+                    itemName,
+                    this.backgroundX + 38,
+                    rowY + 8,
+                    Colors.WHITE
+            );
         }
-    }
 
-    private void drawSlot(DrawContext context, int x, int y) {
-        // Слоты уже есть в текстуре креативного инвентаря
-    }
+        // Кнопка добавления нового предмета (последняя строка)
+        int addButtonY = this.backgroundY + 20 + (Math.min(ITEMS_VISIBLE, goals.size() - scrollOffset) * ITEM_ROW_HEIGHT);
 
-    private void drawAddButton(DrawContext context, int x, int y) {
-        // Зелёный фон для кнопки добавления
-        context.fill(x + 1, y + 1, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0x5000AA00);
+        // Фон кнопки добавления
+        if (mouseX >= this.backgroundX + 10 && mouseX < this.backgroundX + WINDOW_WIDTH - 10 &&
+                mouseY >= addButtonY && mouseY < addButtonY + ITEM_ROW_HEIGHT) {
+            context.fill(
+                    this.backgroundX + 10,
+                    addButtonY,
+                    this.backgroundX + WINDOW_WIDTH - 10,
+                    addButtonY + ITEM_ROW_HEIGHT,
+                    0x4000AA00  // Зелёный полупрозрачный
+            );
+            hoveredItemIcon = -2;  // Специальный индекс для кнопки добавления
+        }
 
-        // Знак "+"
+        // Иконка "+"
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
-                "+",
-                x + SLOT_SIZE / 2,
-                y + SLOT_SIZE / 2 - 4,
-                Colors.WHITE
+                "+  Добавить предмет",
+                this.backgroundX + WINDOW_WIDTH / 2,
+                addButtonY + 8,
+                Colors.GREEN
         );
+    }
+
+    /**
+     * Проверяет, находится ли курсор над строкой
+     */
+    private boolean isMouseOverRow(int mouseX, int mouseY, int rowY) {
+        return mouseX >= this.backgroundX + 10 &&
+                mouseX < this.backgroundX + WINDOW_WIDTH - 10 &&
+                mouseY >= rowY &&
+                mouseY < rowY + ITEM_ROW_HEIGHT;
     }
 
     private void drawTooltips(DrawContext context, int mouseX, int mouseY) {
@@ -432,22 +542,21 @@ public class CreativeTrackerScreen extends Screen {
             }
         }
 
-        // Подсказка для предмета
-        if (hoveredSlot >= 0 && this.currentList != null) {
+        // Подсказка для иконки предмета
+        if (hoveredItemIcon >= 0 && this.currentList != null) {
             List<ItemGoal> goals = this.currentList.getGoals();
-            if (hoveredSlot < goals.size()) {
-                ItemGoal goal = goals.get(hoveredSlot);
+            if (hoveredItemIcon < goals.size()) {
                 context.drawTooltip(
                         this.textRenderer,
-                        Text.literal(goal.getDisplayName() + " x" + goal.getTargetAmount()),
+                        Text.literal("Нажмите, чтобы изменить предмет"),
                         mouseX,
                         mouseY
                 );
             }
-        } else if (hoveredSlot == -2) {
+        } else if (hoveredItemIcon == -2) {
             context.drawTooltip(
                     this.textRenderer,
-                    Text.literal("Добавить предмет"),
+                    Text.literal("Добавить новый предмет в список"),
                     mouseX,
                     mouseY
             );
@@ -456,7 +565,7 @@ public class CreativeTrackerScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // ВАЖНО: Сначала обрабатываем клики по кнопкам и виджетам
+        // Сначала обрабатываем клики по кнопкам и виджетам
         if (super.mouseClicked(mouseX, mouseY, button)) {
             return true;
         }
@@ -473,22 +582,14 @@ public class CreativeTrackerScreen extends Screen {
             }
         }
 
-        // Затем клик по предмету
-        if (hoveredSlot >= 0 && this.currentList != null) {
-            List<ItemGoal> goals = this.currentList.getGoals();
-            if (hoveredSlot < goals.size()) {
-                ItemGoal goal = goals.get(hoveredSlot);
+        // Клик по иконке предмета - открыть окно поиска
+        if (button == 0 && hoveredItemIcon >= 0 && this.currentList != null) {
+            this.client.setScreen(new ItemSelectionScreen(this, this.currentList));
+            return true;
+        }
 
-                if (button == 0) { // ЛКМ - редактировать количество
-                    this.client.setScreen(new AmountEditScreen(this, this.currentList, goal));
-                } else if (button == 1) { // ПКМ - удалить
-                    this.currentList.removeGoal(hoveredSlot - (scrollOffset * ITEMS_PER_ROW));
-                    TrackerListManager.save();
-                }
-                return true;
-            }
-        } else if (hoveredSlot == -2) {
-            // Кнопка добавления
+        // Клик по кнопке добавления
+        if (button == 0 && hoveredItemIcon == -2 && this.currentList != null) {
             this.client.setScreen(new ItemSelectionScreen(this, this.currentList));
             return true;
         }
@@ -500,14 +601,15 @@ public class CreativeTrackerScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (this.currentList == null) return false;
 
-        int maxRows = (int) Math.ceil(this.currentList.size() / (double) ITEMS_PER_ROW);
-        int maxScroll = Math.max(0, maxRows - ROWS);
+        int maxScroll = Math.max(0, this.currentList.size() - ITEMS_VISIBLE);
 
         if (verticalAmount > 0 && scrollOffset > 0) {
             scrollOffset--;
+            this.clearAndInit();
             return true;
         } else if (verticalAmount < 0 && scrollOffset < maxScroll) {
             scrollOffset++;
+            this.clearAndInit();
             return true;
         }
 

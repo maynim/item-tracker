@@ -1,11 +1,9 @@
 package ru.maynim.tasklist.gui;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -13,7 +11,9 @@ import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
 import net.minecraft.util.Identifier;
+import ru.maynim.tasklist.ItemGoal;
 import ru.maynim.tasklist.TrackerList;
+import ru.maynim.tasklist.TrackerListManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -129,8 +129,8 @@ public class ItemSelectionScreen extends Screen {
             int row = i / ITEMS_PER_ROW;
             int col = i % ITEMS_PER_ROW;
 
-            int slotX = this.backgroundX + 9 + (col * SLOT_SIZE);
-            int slotY = this.backgroundY + 18 + (row * SLOT_SIZE);
+            int slotX = this.backgroundX + 8 + (col * SLOT_SIZE);  // Было 9, стало 8 (-1 пиксель)
+            int slotY = this.backgroundY + 17 + (row * SLOT_SIZE); // Было 18, стало 17 (-1 пиксель)
 
             int itemIndex = i + (scrollOffset * ITEMS_PER_ROW);
 
@@ -186,8 +186,16 @@ public class ItemSelectionScreen extends Screen {
         if (button == 0 && hoveredSlot >= 0 && hoveredSlot < filteredItems.size()) {
             Item selectedItem = filteredItems.get(hoveredSlot);
 
-            // Открываем экран редактирования количества
-            this.client.setScreen(new AmountEditScreen(this.parent, this.targetList, selectedItem));
+            // Добавляем предмет в список с количеством 1
+            targetList.addGoal(new ItemGoal(
+                selectedItem.toString(),
+                1,  // По умолчанию количество = 1
+                null  // Название берется из игры
+            ));
+            TrackerListManager.save();
+
+            // Возвращаемся к главному экрану
+            this.close();
             return true;
         }
 

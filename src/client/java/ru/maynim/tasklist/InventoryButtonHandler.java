@@ -31,8 +31,7 @@ public class InventoryButtonHandler {
         x = (screenWidth - 176) / 2;
         y = (screenHeight - 166) / 2;
 
-        // Позиционируем кнопку справа от инвентаря
-        int buttonX = x + 176 + 5;  // 176 - ширина инвентаря + отступ
+        int buttonX = x + 176 + 5;
         int buttonY = y + 4;
 
         // Создаем кнопку
