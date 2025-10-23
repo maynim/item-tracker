@@ -1,5 +1,6 @@
 package ru.maynim.tasklist;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.block.BlockState;
@@ -32,6 +33,9 @@ public class ContainerButtonHandler {
     // Хранит позицию контейнера для каждого открытого экрана
     private static final Map<Screen, ContainerInfo> openContainers = new HashMap<>();
 
+    // Хранит последний открытый экран для отслеживания закрытия
+    private static Screen lastScreen = null;
+
     private static class ContainerInfo {
         final BlockPos pos;
         final String dimension;
@@ -50,23 +54,31 @@ public class ContainerButtonHandler {
             }
         });
 
-        // Синхронизируем содержимое при закрытии экрана
-        ScreenEvents.REMOVE.register(screen -> {
-            if (isContainerScreen(screen) && openContainers.containsKey(screen)) {
-                ContainerInfo info = openContainers.get(screen);
+        // Отслеживаем закрытие экранов через ClientTickEvents
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            Screen currentScreen = client.currentScreen;
 
-                // Синхронизируем только если контейнер отслеживается
-                if (GlobalCounterManager.isTracked(info.pos, info.dimension)) {
-                    MinecraftClient mc = MinecraftClient.getInstance();
-                    if (mc != null && mc.player != null) {
-                        List<ItemStack> contents = collectContainerContents((HandledScreen<?>) screen, mc);
-                        GlobalCounterManager.updateContainer(info.pos, info.dimension, contents);
+            // Проверяем, изменился ли экран (закрылся контейнер)
+            if (lastScreen != null && lastScreen != currentScreen) {
+                // Предыдущий экран закрылся, синхронизируем если это был контейнер
+                if (isContainerScreen(lastScreen) && openContainers.containsKey(lastScreen)) {
+                    ContainerInfo info = openContainers.get(lastScreen);
+
+                    // Синхронизируем только если контейнер отслеживается
+                    if (GlobalCounterManager.isTracked(info.pos, info.dimension)) {
+                        if (client.player != null) {
+                            List<ItemStack> contents = collectContainerContents((HandledScreen<?>) lastScreen, client);
+                            GlobalCounterManager.updateContainer(info.pos, info.dimension, contents);
+                        }
                     }
-                }
 
-                // Удаляем из списка открытых
-                openContainers.remove(screen);
+                    // Удаляем из списка открытых
+                    openContainers.remove(lastScreen);
+                }
             }
+
+            // Обновляем последний экран
+            lastScreen = currentScreen;
         });
     }
 
