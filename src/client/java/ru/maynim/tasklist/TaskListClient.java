@@ -114,9 +114,14 @@ public class TaskListClient implements ClientModInitializer {
             ItemStack displayStack = new ItemStack(goal.getItem());
             context.drawItem(displayStack, startX, currentY);
 
-            // Отображаем количество на иконке (как в инвентаре)
-            if (currentAmount > 1 || isTrackingMode) {
-                context.drawItemInSlot(textRenderer, displayStack, startX, currentY, String.valueOf(currentAmount));
+            // Отображаем количество на иконке (вручную, как в инвентаре)
+            if (currentAmount != 1 || isTrackingMode) {
+                String countText = String.valueOf(currentAmount);
+                int textX = startX + 16 - textRenderer.getWidth(countText);
+                int textY = currentY + 9;
+
+                // Рисуем текст с тенью для лучшей читаемости
+                context.drawText(textRenderer, countText, textX, textY, Colors.WHITE, true);
             }
 
             // Текст
