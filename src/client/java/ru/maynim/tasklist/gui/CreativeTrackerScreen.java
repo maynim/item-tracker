@@ -130,7 +130,15 @@ public class CreativeTrackerScreen extends Screen {
 
         if (this.currentList != null) {
             for (ItemGoal goal : this.currentList.getGoals()) {
-                int count = countItemInInventory(goal.getItem());
+                int count;
+                if (goal.isGlobal()) {
+                    // Глобальный режим: инвентарь + все контейнеры
+                    count = countItemInInventory(goal.getItem()) +
+                            GlobalCounterManager.getGlobalCount(goal.getItem());
+                } else {
+                    // Обычный режим: только инвентарь
+                    count = countItemInInventory(goal.getItem());
+                }
                 currentItemCounts.put(goal.getItem(), count);
             }
         }
@@ -201,13 +209,14 @@ public class CreativeTrackerScreen extends Screen {
                         // Разрешаем 0 для режима отслеживания
                         int amount = text.isEmpty() ? 0 : Integer.parseInt(text);
                         if (amount >= 0 && amount <= 999) {
-                            // Обновляем количество в цели
+                            // Обновляем количество в цели, сохраняя флаг isGlobal
                             ItemGoal currentGoal = this.currentList.getGoals().get(finalGoalIndex);
                             this.currentList.removeGoal(finalGoalIndex);
                             this.currentList.getGoals().add(finalGoalIndex, new ItemGoal(
                                     currentGoal.getItem().toString(),
                                     amount,
-                                    null
+                                    null,
+                                    currentGoal.isGlobal()
                             ));
                             TrackerListManager.save();
                         }
@@ -528,12 +537,18 @@ public class CreativeTrackerScreen extends Screen {
 
             // Название предмета (не редактируемое)
             String itemName = stack.getName().getString();
+
+            // Добавляем индикатор глобального режима
+            if (goal.isGlobal()) {
+                itemName = "[G] " + itemName;
+            }
+
             context.drawTextWithShadow(
                     this.textRenderer,
                     itemName,
                     this.backgroundX + 38,
                     rowY + 8,
-                    Colors.WHITE
+                    goal.isGlobal() ? Colors.AQUA : Colors.WHITE
             );
 
             // Текущее количество предметов в инвентаре (слева от поля количества)
@@ -549,29 +564,52 @@ public class CreativeTrackerScreen extends Screen {
             );
         }
 
-        // Кнопка добавления нового предмета (последняя строка)
+        // Кнопки добавления (две кнопки: обычный и глобальный счетчики)
         int addButtonY = this.backgroundY + 20 + (Math.min(ITEMS_VISIBLE, goals.size() - scrollOffset) * ITEM_ROW_HEIGHT);
+        int buttonWidth = (WINDOW_WIDTH - 25) / 2;
 
-        // Фон кнопки добавления
-        if (mouseX >= this.backgroundX + 10 && mouseX < this.backgroundX + WINDOW_WIDTH - 10 &&
+        // Левая кнопка - обычный счетчик
+        int leftButtonX = this.backgroundX + 10;
+        if (mouseX >= leftButtonX && mouseX < leftButtonX + buttonWidth &&
                 mouseY >= addButtonY && mouseY < addButtonY + ITEM_ROW_HEIGHT) {
             context.fill(
-                    this.backgroundX + 10,
+                    leftButtonX,
                     addButtonY,
-                    this.backgroundX + WINDOW_WIDTH - 10,
+                    leftButtonX + buttonWidth,
                     addButtonY + ITEM_ROW_HEIGHT,
                     0x4000AA00  // Зелёный полупрозрачный
             );
-            hoveredItemIcon = -2;  // Специальный индекс для кнопки добавления
+            hoveredItemIcon = -2;  // Специальный индекс для обычной кнопки
         }
 
-        // Иконка "+"
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
-                "+  Добавить предмет",
-                this.backgroundX + WINDOW_WIDTH / 2,
+                "+ Предмет",
+                leftButtonX + buttonWidth / 2,
                 addButtonY + 8,
                 Colors.GREEN
+        );
+
+        // Правая кнопка - глобальный счетчик
+        int rightButtonX = leftButtonX + buttonWidth + 5;
+        if (mouseX >= rightButtonX && mouseX < rightButtonX + buttonWidth &&
+                mouseY >= addButtonY && mouseY < addButtonY + ITEM_ROW_HEIGHT) {
+            context.fill(
+                    rightButtonX,
+                    addButtonY,
+                    rightButtonX + buttonWidth,
+                    addButtonY + ITEM_ROW_HEIGHT,
+                    0x4000AAAA  // Бирюзовый полупрозрачный
+            );
+            hoveredItemIcon = -3;  // Специальный индекс для глобальной кнопки
+        }
+
+        context.drawCenteredTextWithShadow(
+                this.textRenderer,
+                "+ Глобальный",
+                rightButtonX + buttonWidth / 2,
+                addButtonY + 8,
+                Colors.AQUA
         );
     }
 
@@ -619,6 +657,13 @@ public class CreativeTrackerScreen extends Screen {
                     mouseX,
                     mouseY
             );
+        } else if (hoveredItemIcon == -3) {
+            context.drawTooltip(
+                    this.textRenderer,
+                    Text.literal("Добавить глобальный счетчик (с учетом контейнеров)"),
+                    mouseX,
+                    mouseY
+            );
         }
     }
 
@@ -647,9 +692,15 @@ public class CreativeTrackerScreen extends Screen {
             return true;
         }
 
-        // Клик по кнопке добавления
+        // Клик по кнопке добавления обычного предмета
         if (button == 0 && hoveredItemIcon == -2 && this.currentList != null) {
-            this.client.setScreen(new ItemSelectionScreen(this, this.currentList));
+            this.client.setScreen(new ItemSelectionScreen(this, this.currentList, false));
+            return true;
+        }
+
+        // Клик по кнопке добавления глобального счетчика
+        if (button == 0 && hoveredItemIcon == -3 && this.currentList != null) {
+            this.client.setScreen(new ItemSelectionScreen(this, this.currentList, true));
             return true;
         }
 

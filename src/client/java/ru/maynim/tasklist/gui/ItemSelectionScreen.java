@@ -34,6 +34,7 @@ public class ItemSelectionScreen extends Screen {
 
     private final Screen parent;
     private final TrackerList targetList;
+    private final boolean isGlobal;
     private int backgroundX;
     private int backgroundY;
 
@@ -42,10 +43,11 @@ public class ItemSelectionScreen extends Screen {
     private int scrollOffset = 0;
     private int hoveredSlot = -1;
 
-    public ItemSelectionScreen(Screen parent, TrackerList targetList) {
-        super(Text.literal("Выберите предмет"));
+    public ItemSelectionScreen(Screen parent, TrackerList targetList, boolean isGlobal) {
+        super(Text.literal(isGlobal ? "Выберите предмет (Глобальный)" : "Выберите предмет"));
         this.parent = parent;
         this.targetList = targetList;
+        this.isGlobal = isGlobal;
         this.filteredItems = new ArrayList<>();
 
         // Заполняем список всех предметов
@@ -54,6 +56,10 @@ public class ItemSelectionScreen extends Screen {
                 filteredItems.add(item);
             }
         }
+    }
+
+    public ItemSelectionScreen(Screen parent, TrackerList targetList) {
+        this(parent, targetList, false);
     }
 
     @Override
@@ -190,7 +196,8 @@ public class ItemSelectionScreen extends Screen {
             targetList.addGoal(new ItemGoal(
                 selectedItem.toString(),
                 0,  // По умолчанию режим отслеживания (0 = просто считать)
-                null  // Название берется из игры
+                null,  // Название берется из игры
+                isGlobal  // Глобальный или локальный режим
             ));
             TrackerListManager.save();
 

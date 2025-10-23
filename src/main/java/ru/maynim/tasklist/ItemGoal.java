@@ -12,6 +12,7 @@ public class ItemGoal {
     private final Item item;
     private final int targetAmount;
     private final String displayName;
+    private final boolean isGlobal;
 
     /**
      * Creates a new item goal
@@ -19,8 +20,9 @@ public class ItemGoal {
      * @param itemId Identifier of the item (e.g., "minecraft:oak_planks")
      * @param targetAmount Target amount to collect
      * @param displayName Display name for the HUD (e.g., "Дубовые доски")
+     * @param isGlobal If true, counts items in all containers, not just inventory
      */
-    public ItemGoal(String itemId, int targetAmount, String displayName) {
+    public ItemGoal(String itemId, int targetAmount, String displayName, boolean isGlobal) {
         Identifier id = Identifier.tryParse(itemId);
         if (id == null) {
             throw new IllegalArgumentException("Invalid item ID: " + itemId);
@@ -29,6 +31,7 @@ public class ItemGoal {
         this.item = Registries.ITEM.get(id);
         this.targetAmount = targetAmount;
         this.displayName = displayName;
+        this.isGlobal = isGlobal;
 
         if (this.item == null) {
             TaskList.LOGGER.warn("Item not found: {}", itemId);
@@ -39,7 +42,14 @@ public class ItemGoal {
      * Creates a new item goal with automatic display name from item
      */
     public ItemGoal(String itemId, int targetAmount) {
-        this(itemId, targetAmount, null);
+        this(itemId, targetAmount, null, false);
+    }
+
+    /**
+     * Creates a new item goal with custom display name
+     */
+    public ItemGoal(String itemId, int targetAmount, String displayName) {
+        this(itemId, targetAmount, displayName, false);
     }
 
     /**
@@ -71,6 +81,13 @@ public class ItemGoal {
      */
     public boolean isTrackingMode() {
         return targetAmount == 0;
+    }
+
+    /**
+     * Checks if this goal is in global mode (counts items in all containers)
+     */
+    public boolean isGlobal() {
+        return isGlobal;
     }
 
     /**

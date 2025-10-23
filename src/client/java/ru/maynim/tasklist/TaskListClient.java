@@ -38,8 +38,14 @@ public class TaskListClient implements ClientModInitializer {
         // Инициализация менеджера списков
         TrackerListManager.initialize();
 
+        // Инициализация глобального счетчика
+        GlobalCounterManager.load();
+
         // Регистрация кнопки в инвентаре
         InventoryButtonHandler.register();
+
+        // Регистрация кнопки в контейнерах
+        ContainerButtonHandler.register();
 
         // Регистрация HUD элемента
         HudElementRegistry.addLast(
@@ -66,7 +72,15 @@ public class TaskListClient implements ClientModInitializer {
 
         if (list != null) {
             for (ItemGoal goal : list.getGoals()) {
-                int count = countItemInInventory(inventory, goal.getItem());
+                int count;
+                if (goal.isGlobal()) {
+                    // Глобальный режим: инвентарь + все контейнеры
+                    count = countItemInInventory(inventory, goal.getItem()) +
+                            GlobalCounterManager.getGlobalCount(goal.getItem());
+                } else {
+                    // Обычный режим: только инвентарь
+                    count = countItemInInventory(inventory, goal.getItem());
+                }
                 itemCounts.put(goal.getItem(), count);
             }
         }
@@ -90,7 +104,9 @@ public class TaskListClient implements ClientModInitializer {
         int startY = PADDING;
 
         // Рисуем общий фон ПЕРВЫМ
-        int totalHeight = LINE_HEIGHT * (activeList.size() + 1) + PADDING;
+        int containerCount = GlobalCounterManager.getContainerCount();
+        int extraLines = containerCount > 0 ? 1 : 0; // Добавляем строку для информации о контейнерах
+        int totalHeight = LINE_HEIGHT * (activeList.size() + 1 + extraLines) + PADDING;
         drawBackgroundBox(context, startX - PADDING, PADDING - 2, 210, totalHeight);
 
         // Рисуем заголовок с именем списка
@@ -127,6 +143,11 @@ public class TaskListClient implements ClientModInitializer {
             // Текст
             String displayText = goal.getDisplayName();
 
+            // Добавляем индикатор глобального режима
+            if (goal.isGlobal()) {
+                displayText = "[G] " + displayText;
+            }
+
             // В режиме отслеживания показываем только название
             // В режиме цели показываем прогресс
             if (!isTrackingMode) {
@@ -154,6 +175,14 @@ public class TaskListClient implements ClientModInitializer {
             }
 
             goalIndex++;
+        }
+
+        // Показываем информацию о глобальных контейнерах, если есть
+        int containerCount = GlobalCounterManager.getContainerCount();
+        if (containerCount > 0) {
+            int infoY = startY + (goalIndex * LINE_HEIGHT);
+            String containerInfo = "§7[" + containerCount + " контейнеров]";
+            context.drawTextWithShadow(textRenderer, containerInfo, startX + TEXT_OFFSET, infoY, Colors.GRAY);
         }
     }
 

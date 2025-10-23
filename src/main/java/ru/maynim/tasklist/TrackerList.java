@@ -75,6 +75,7 @@ public class TrackerList {
             goalObj.addProperty("item", goal.getItem().toString());
             goalObj.addProperty("amount", goal.getTargetAmount());
             goalObj.addProperty("displayName", goal.getDisplayName());
+            goalObj.addProperty("isGlobal", goal.isGlobal());
             goalsArray.add(goalObj);
         }
         obj.add("goals", goalsArray);
@@ -98,9 +99,10 @@ public class TrackerList {
                 int amount = goalObj.get("amount").getAsInt();
                 String displayName = goalObj.has("displayName") ?
                         goalObj.get("displayName").getAsString() : null;
+                boolean isGlobal = goalObj.has("isGlobal") && goalObj.get("isGlobal").getAsBoolean();
 
                 try {
-                    list.addGoal(new ItemGoal(itemId, amount, displayName));
+                    list.addGoal(new ItemGoal(itemId, amount, displayName, isGlobal));
                 } catch (Exception e) {
                     TaskList.LOGGER.warn("Failed to load goal: {}", itemId);
                 }
@@ -116,7 +118,8 @@ public class TrackerList {
             copy.addGoal(new ItemGoal(
                     goal.getItem().toString(),
                     goal.getTargetAmount(),
-                    goal.getDisplayName()
+                    goal.getDisplayName(),
+                    goal.isGlobal()
             ));
         }
         return copy;
