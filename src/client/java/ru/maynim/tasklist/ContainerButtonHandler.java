@@ -20,18 +20,52 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Handles adding a button to container screens for tracking global counts
  */
 public class ContainerButtonHandler {
 
+    // Хранит позицию контейнера для каждого открытого экрана
+    private static final Map<Screen, ContainerInfo> openContainers = new HashMap<>();
+
+    private static class ContainerInfo {
+        final BlockPos pos;
+        final String dimension;
+
+        ContainerInfo(BlockPos pos, String dimension) {
+            this.pos = pos;
+            this.dimension = dimension;
+        }
+    }
+
     public static void register() {
         // Добавляем кнопку в экраны контейнеров
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (isContainerScreen(screen)) {
                 addContainerTrackingButton((HandledScreen<?>) screen, scaledWidth, scaledHeight);
+            }
+        });
+
+        // Синхронизируем содержимое при закрытии экрана
+        ScreenEvents.BEFORE_CLOSE.register(screen -> {
+            if (isContainerScreen(screen) && openContainers.containsKey(screen)) {
+                ContainerInfo info = openContainers.get(screen);
+
+                // Синхронизируем только если контейнер отслеживается
+                if (GlobalCounterManager.isTracked(info.pos, info.dimension)) {
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    if (mc != null && mc.player != null) {
+                        List<ItemStack> contents = collectContainerContents((HandledScreen<?>) screen, mc);
+                        GlobalCounterManager.updateContainer(info.pos, info.dimension, contents);
+                    }
+                }
+
+                // Удаляем из списка открытых
+                openContainers.remove(screen);
             }
         });
     }
@@ -149,6 +183,9 @@ public class ContainerButtonHandler {
         BlockPos containerPos = normalizeChestPosition(mc, rawPos);
         String dimension = mc.world.getRegistryKey().getValue().toString();
 
+        // Сохраняем информацию о контейнере для синхронизации при закрытии
+        openContainers.put(screen, new ContainerInfo(containerPos, dimension));
+
         // Вычисляем координаты кнопки
         int x = (screenWidth - 176) / 2;
         int y = (screenHeight - 166) / 2;
@@ -159,13 +196,7 @@ public class ContainerButtonHandler {
         // Определяем, отслеживается ли уже этот контейнер
         boolean isTracked = GlobalCounterManager.isTracked(containerPos, dimension);
 
-        // Автоматически синхронизируем содержимое если контейнер отслеживается
         final BlockPos finalPos = containerPos;
-        if (isTracked) {
-            // Обновляем содержимое отслеживаемого контейнера
-            List<ItemStack> contents = collectContainerContents(screen, mc);
-            GlobalCounterManager.updateContainer(finalPos, dimension, contents);
-        }
 
         // Создаем кнопку
         ButtonWidget trackButton = ButtonWidget.builder(
@@ -186,7 +217,7 @@ public class ContainerButtonHandler {
                                     true
                                 );
                             } else {
-                                // Добавляем в отслеживание
+                                // Добавляем в отслеживание с текущим содержимым
                                 List<ItemStack> contents = collectContainerContents(screen, client);
                                 GlobalCounterManager.updateContainer(finalPos, dim, contents);
                                 button.setMessage(Text.literal("✓"));
