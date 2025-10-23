@@ -186,10 +186,10 @@ public class ItemSelectionScreen extends Screen {
         if (button == 0 && hoveredSlot >= 0 && hoveredSlot < filteredItems.size()) {
             Item selectedItem = filteredItems.get(hoveredSlot);
 
-            // Добавляем предмет в список с количеством 1
+            // Добавляем предмет в список в режиме отслеживания (количество = 0)
             targetList.addGoal(new ItemGoal(
                 selectedItem.toString(),
-                1,  // По умолчанию количество = 1
+                0,  // По умолчанию режим отслеживания (0 = просто считать)
                 null  // Название берется из игры
             ));
             TrackerListManager.save();

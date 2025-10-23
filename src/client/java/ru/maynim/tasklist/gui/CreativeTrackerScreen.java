@@ -6,6 +6,8 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
@@ -16,7 +18,9 @@ import ru.maynim.tasklist.TrackerList;
 import ru.maynim.tasklist.TrackerListManager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Creative-style GUI for managing tracker lists
@@ -75,6 +79,9 @@ public class CreativeTrackerScreen extends Screen {
     private final List<TextFieldWidget> amountFields = new ArrayList<>();
     private final List<ButtonWidget> deleteButtons = new ArrayList<>();
 
+    // Кэш текущего количества предметов в инвентаре
+    private final Map<Item, Integer> currentItemCounts = new HashMap<>();
+
     public CreativeTrackerScreen(Screen parent) {
         super(Text.literal("Управление списками"));
         this.parent = parent;
@@ -96,9 +103,45 @@ public class CreativeTrackerScreen extends Screen {
         }
     }
 
+    /**
+     * Подсчитывает количество предмета в инвентаре игрока
+     */
+    private int countItemInInventory(Item item) {
+        if (this.client == null || this.client.player == null) return 0;
+
+        PlayerInventory inventory = this.client.player.getInventory();
+        int count = 0;
+
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (!stack.isEmpty() && stack.getItem() == item) {
+                count += stack.getCount();
+            }
+        }
+
+        return count;
+    }
+
+    /**
+     * Обновляет кэш текущего количества предметов
+     */
+    private void updateItemCounts() {
+        currentItemCounts.clear();
+
+        if (this.currentList != null) {
+            for (ItemGoal goal : this.currentList.getGoals()) {
+                int count = countItemInInventory(goal.getItem());
+                currentItemCounts.put(goal.getItem(), count);
+            }
+        }
+    }
+
     @Override
     protected void init() {
         super.init();
+
+        // Обновляем количество предметов
+        updateItemCounts();
 
         // Вычисляем позицию окна по центру
         this.backgroundX = (this.width - WINDOW_WIDTH) / 2;
@@ -155,8 +198,9 @@ public class CreativeTrackerScreen extends Screen {
                 final int finalGoalIndex = goalIndex;
                 amountField.setChangedListener(text -> {
                     try {
-                        int amount = Integer.parseInt(text);
-                        if (amount > 0 && amount <= 999) {
+                        // Разрешаем 0 для режима отслеживания
+                        int amount = text.isEmpty() ? 0 : Integer.parseInt(text);
+                        if (amount >= 0 && amount <= 999) {
                             // Обновляем количество в цели
                             ItemGoal currentGoal = this.currentList.getGoals().get(finalGoalIndex);
                             this.currentList.removeGoal(finalGoalIndex);
@@ -255,6 +299,9 @@ public class CreativeTrackerScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        // Обновляем количество предметов в реальном времени
+        updateItemCounts();
+
         // Затемнённый фон
         context.fillGradient(0, 0, this.width, this.height, 0xC0101010, 0xD0101010);
 
@@ -487,6 +534,18 @@ public class CreativeTrackerScreen extends Screen {
                     this.backgroundX + 38,
                     rowY + 8,
                     Colors.WHITE
+            );
+
+            // Текущее количество предметов в инвентаре (слева от поля количества)
+            int currentCount = currentItemCounts.getOrDefault(goal.getItem(), 0);
+            String countText = String.valueOf(currentCount);
+            int countX = this.backgroundX + 165;
+            context.drawTextWithShadow(
+                    this.textRenderer,
+                    countText,
+                    countX,
+                    rowY + 8,
+                    goal.isTrackingMode() ? Colors.YELLOW : (goal.isCompleted(currentCount) ? Colors.GREEN : Colors.WHITE)
             );
         }
 

@@ -67,9 +67,17 @@ public class ItemGoal {
     }
 
     /**
+     * Checks if this goal is in tracking mode (no target amount)
+     */
+    public boolean isTrackingMode() {
+        return targetAmount == 0;
+    }
+
+    /**
      * Checks if this goal is completed
      */
     public boolean isCompleted(int currentAmount) {
+        if (isTrackingMode()) return false; // В режиме подсчета нет завершения
         return currentAmount >= targetAmount;
     }
 
@@ -82,9 +90,12 @@ public class ItemGoal {
     }
 
     /**
-     * Gets formatted progress string (e.g., "3/8")
+     * Gets formatted progress string (e.g., "3/8" or just "3" in tracking mode)
      */
     public String getProgressString(int currentAmount) {
+        if (isTrackingMode()) {
+            return String.valueOf(currentAmount);
+        }
         return currentAmount + "/" + targetAmount;
     }
 }

@@ -106,6 +106,7 @@ public class TaskListClient implements ClientModInitializer {
 
             int currentAmount = itemCounts.getOrDefault(goal.getItem(), 0);
             boolean completed = goal.isCompleted(currentAmount);
+            boolean isTrackingMode = goal.isTrackingMode();
 
             int textColor = completed ? Colors.GREEN : Colors.WHITE;
 
@@ -113,14 +114,21 @@ public class TaskListClient implements ClientModInitializer {
             ItemStack displayStack = new ItemStack(goal.getItem());
             context.drawItem(displayStack, startX, currentY);
 
-//            if (currentAmount > 1) {
-//                context.drawItemInSlot(textRenderer, displayStack, startX, currentY);
-//            }
+            // Отображаем количество на иконке (как в инвентаре)
+            if (currentAmount > 1 || isTrackingMode) {
+                context.drawItemInSlot(textRenderer, displayStack, startX, currentY, String.valueOf(currentAmount));
+            }
 
             // Текст
-            String displayText = goal.getDisplayName() + ": " + goal.getProgressString(currentAmount);
-            if (completed) {
-                displayText = "✓ " + displayText;
+            String displayText = goal.getDisplayName();
+
+            // В режиме отслеживания показываем только название
+            // В режиме цели показываем прогресс
+            if (!isTrackingMode) {
+                displayText += ": " + goal.getProgressString(currentAmount);
+                if (completed) {
+                    displayText = "✓ " + displayText;
+                }
             }
 
             int textX = startX + TEXT_OFFSET;
@@ -128,8 +136,8 @@ public class TaskListClient implements ClientModInitializer {
 
             context.drawTextWithShadow(textRenderer, displayText, textX, textY, textColor);
 
-            // Прогресс-бар
-            if (!completed) {
+            // Прогресс-бар (только для целей, не для отслеживания)
+            if (!isTrackingMode && !completed) {
                 int textWidth = textRenderer.getWidth(displayText);
                 drawProgressBar(
                         context,
