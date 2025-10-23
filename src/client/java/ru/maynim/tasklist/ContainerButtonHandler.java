@@ -51,7 +51,7 @@ public class ContainerButtonHandler {
         });
 
         // Синхронизируем содержимое при закрытии экрана
-        ScreenEvents.BEFORE_CLOSE.register(screen -> {
+        ScreenEvents.REMOVE.register(screen -> {
             if (isContainerScreen(screen) && openContainers.containsKey(screen)) {
                 ContainerInfo info = openContainers.get(screen);
 
