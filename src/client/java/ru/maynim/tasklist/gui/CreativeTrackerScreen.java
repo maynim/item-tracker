@@ -13,6 +13,7 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
 import net.minecraft.util.Identifier;
+import ru.maynim.tasklist.GlobalCounterManager;
 import ru.maynim.tasklist.ItemGoal;
 import ru.maynim.tasklist.TrackerList;
 import ru.maynim.tasklist.TrackerListManager;
@@ -284,6 +285,19 @@ public class CreativeTrackerScreen extends Screen {
                         ScreenTexts.DONE,
                         button -> this.close())
                 .dimensions(this.backgroundX + WINDOW_WIDTH - 40, this.backgroundY + WINDOW_HEIGHT - 24, 35, 16)
+                .build()
+        );
+
+        // Кнопка "Контейнеры" слева от окна
+        this.addDrawableChild(ButtonWidget.builder(
+                        Text.literal("📦"),
+                        button -> {
+                            if (this.client != null) {
+                                this.client.setScreen(new ContainerListScreen(this));
+                            }
+                        })
+                .dimensions(this.backgroundX - 28, this.backgroundY + 10, 24, 24)
+                .tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Управление контейнерами")))
                 .build()
         );
     }

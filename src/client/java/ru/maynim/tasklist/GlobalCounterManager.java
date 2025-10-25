@@ -97,6 +97,104 @@ public class GlobalCounterManager {
     }
 
     /**
+     * Получает детальную информацию о всех контейнерах
+     */
+    public static List<ContainerInfo> getContainerDetails() {
+        List<ContainerInfo> details = new ArrayList<>();
+
+        for (Map.Entry<String, Map<Item, Integer>> entry : containerContents.entrySet()) {
+            String key = entry.getKey();
+            Map<Item, Integer> items = entry.getValue();
+
+            // Парсим ключ: "dimension:x,y,z"
+            String[] parts = key.split(":");
+            if (parts.length != 2) continue;
+
+            String dimension = parts[0];
+            String[] coords = parts[1].split(",");
+            if (coords.length != 3) continue;
+
+            try {
+                int x = Integer.parseInt(coords[0]);
+                int y = Integer.parseInt(coords[1]);
+                int z = Integer.parseInt(coords[2]);
+                BlockPos pos = new BlockPos(x, y, z);
+
+                // Подсчитываем общее количество предметов
+                int totalItems = items.values().stream().mapToInt(Integer::intValue).sum();
+                int uniqueItems = items.size();
+
+                details.add(new ContainerInfo(pos, dimension, uniqueItems, totalItems, items));
+            } catch (NumberFormatException e) {
+                TaskList.LOGGER.warn("Failed to parse container key: {}", key);
+            }
+        }
+
+        return details;
+    }
+
+    /**
+     * Получает содержимое конкретного контейнера
+     */
+    public static Map<Item, Integer> getContainerContents(BlockPos pos, String dimension) {
+        String key = getContainerKey(pos, dimension);
+        return containerContents.getOrDefault(key, new HashMap<>());
+    }
+
+    /**
+     * Класс для хранения информации о контейнере
+     */
+    public static class ContainerInfo {
+        private final BlockPos position;
+        private final String dimension;
+        private final int uniqueItemCount;
+        private final int totalItemCount;
+        private final Map<Item, Integer> items;
+
+        public ContainerInfo(BlockPos position, String dimension, int uniqueItemCount, int totalItemCount, Map<Item, Integer> items) {
+            this.position = position;
+            this.dimension = dimension;
+            this.uniqueItemCount = uniqueItemCount;
+            this.totalItemCount = totalItemCount;
+            this.items = items;
+        }
+
+        public BlockPos getPosition() {
+            return position;
+        }
+
+        public String getDimension() {
+            return dimension;
+        }
+
+        public int getUniqueItemCount() {
+            return uniqueItemCount;
+        }
+
+        public int getTotalItemCount() {
+            return totalItemCount;
+        }
+
+        public Map<Item, Integer> getItems() {
+            return items;
+        }
+
+        /**
+         * Получает читаемое имя измерения
+         */
+        public String getDimensionName() {
+            if (dimension.contains("overworld")) {
+                return "Верхний мир";
+            } else if (dimension.contains("the_nether")) {
+                return "Нижний мир";
+            } else if (dimension.contains("the_end")) {
+                return "Край";
+            }
+            return dimension;
+        }
+    }
+
+    /**
      * Создает уникальный ключ для контейнера
      */
     private static String getContainerKey(BlockPos pos, String dimension) {
