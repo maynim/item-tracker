@@ -107,11 +107,14 @@ public class GlobalCounterManager {
             Map<Item, Integer> items = entry.getValue();
 
             // Парсим ключ: "dimension:x,y,z"
-            String[] parts = key.split(":");
-            if (parts.length != 2) continue;
+            // Dimension может содержать двоеточие (например, "minecraft:overworld")
+            // Поэтому ищем последнее двоеточие
+            int lastColonIndex = key.lastIndexOf(':');
+            if (lastColonIndex == -1) continue;
 
-            String dimension = parts[0];
-            String[] coords = parts[1].split(",");
+            String dimension = key.substring(0, lastColonIndex);
+            String coordsStr = key.substring(lastColonIndex + 1);
+            String[] coords = coordsStr.split(",");
             if (coords.length != 3) continue;
 
             try {
