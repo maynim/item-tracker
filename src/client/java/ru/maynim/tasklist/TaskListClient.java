@@ -22,8 +22,8 @@ import java.util.Random;
 
 public class TaskListClient implements ClientModInitializer {
 
-    // Кэш текущего количества предметов
-    private static final Map<Item, Integer> itemCounts = new HashMap<>();
+    // Кэш текущего количества предметов для каждой цели
+    private static final Map<ItemGoal, Integer> itemCounts = new HashMap<>();
 
     // Настройки отображения
     private static final int ITEM_ICON_SIZE = 16;
@@ -81,7 +81,7 @@ public class TaskListClient implements ClientModInitializer {
                     // Обычный режим: только инвентарь
                     count = countItemInInventory(inventory, goal.getItem());
                 }
-                itemCounts.put(goal.getItem(), count);
+                itemCounts.put(goal, count);
             }
         }
     }
@@ -120,7 +120,7 @@ public class TaskListClient implements ClientModInitializer {
         for (ItemGoal goal : activeList.getGoals()) {
             int currentY = startY + (goalIndex * LINE_HEIGHT);
 
-            int currentAmount = itemCounts.getOrDefault(goal.getItem(), 0);
+            int currentAmount = itemCounts.getOrDefault(goal, 0);
             boolean completed = goal.isCompleted(currentAmount);
             boolean isTrackingMode = goal.isTrackingMode();
 
